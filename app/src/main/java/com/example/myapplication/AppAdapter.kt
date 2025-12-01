@@ -7,7 +7,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-class AppAdapter(private val apps: List<App>, private val listener: (App) -> Unit) : RecyclerView.Adapter<AppAdapter.ViewHolder>() {
+class AppAdapter(private var apps: List<App>, private val listener: (App) -> Unit) : RecyclerView.Adapter<AppAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -21,6 +21,11 @@ class AppAdapter(private val apps: List<App>, private val listener: (App) -> Uni
     }
 
     override fun getItemCount() = apps.size
+
+    fun updateData(newApps: List<App>) {
+        this.apps = newApps
+        notifyDataSetChanged()
+    }
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val appIcon: ImageView = view.findViewById(R.id.app_icon)

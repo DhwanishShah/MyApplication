@@ -1,8 +1,7 @@
 package com.example.myapplication
 
-import android.app.PendingIntent
+import android.content.Intent
 import android.os.Bundle
-import android.os.Parcel
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -17,10 +16,16 @@ class AppNotificationsActivity : AppCompatActivity() {
         val recycler = findViewById<RecyclerView>(R.id.recyclerAppNoti)
 
         recycler.layoutManager = LinearLayoutManager(this)
-        val adapter = NotificationAdapter { notification ->
+        
+        // 1. Pass an empty list to the adapter's constructor
+        // 2. Update the click listener to open the app, which is more reliable
+        val adapter = NotificationAdapter(emptyList()) { notification ->
             try {
-                notification.pendingIntent?.send()
-            } catch (e: PendingIntent.CanceledException) {
+                val intent = packageManager.getLaunchIntentForPackage(notification.pkg)
+                if (intent != null) {
+                    startActivity(intent)
+                }
+            } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
@@ -36,26 +41,21 @@ class AppNotificationsActivity : AppCompatActivity() {
                 val text = it.getString(it.getColumnIndexOrThrow("text"))
                 val time = it.getLong(it.getColumnIndexOrThrow("time"))
                 val image = it.getBlob(it.getColumnIndexOrThrow("image"))
-                val pendingIntentBytes = it.getBlob(it.getColumnIndexOrThrow("pending_intent"))
+                
+                // 3. Get the app icon data from the cursor
+                val appIcon = it.getBlob(it.getColumnIndexOrThrow("app_icon"))
 
-                var pendingIntent: PendingIntent? = null
-                if (pendingIntentBytes != null) {
-                    val parcel = Parcel.obtain()
-                    parcel.unmarshall(pendingIntentBytes, 0, pendingIntentBytes.size)
-                    parcel.setDataPosition(0)
-                    pendingIntent = PendingIntent.readPendingIntentOrNullFromParcel(parcel)
-                    parcel.recycle()
-                }
-
+                // 4. Instantiate the correct NotificationModel, removing the broken PendingIntent
                 list.add(
                     NotificationModel(
-                        id,
-                        pkg,
-                        title,
-                        text,
-                        time,
-                        image,
-                        pendingIntent
+                        id = id,
+                        pkg = pkg,
+                        title = title,
+                        text = text,
+                        time = time,
+                        image = image,
+                        pendingIntent = null, // This is no longer used but kept for constructor shape
+                        appIcon = appIcon
                     )
                 )
             }

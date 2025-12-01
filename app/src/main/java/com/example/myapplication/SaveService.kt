@@ -1,6 +1,5 @@
 package com.example.myapplication
 
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
@@ -14,9 +13,10 @@ class SaveService : Service() {
         val text = intent?.getStringExtra("text") ?: ""
         val time = intent?.getLongExtra("time", 0) ?: 0
         val image = intent?.getByteArrayExtra("image")
+        val appName = intent?.getStringExtra("app_name")
+        val appIcon = intent?.getByteArrayExtra("app_icon")
 
-        // The PendingIntent has been removed from the save method to fix the crash.
-        NotificationDB.save(this, pkg, title, text, time, image)
+        NotificationDB.save(this, pkg, title, text, time, image, appName, appIcon)
 
         return START_NOT_STICKY
     }

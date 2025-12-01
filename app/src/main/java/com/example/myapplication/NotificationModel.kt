@@ -8,6 +8,7 @@ data class NotificationModel(
     val title: String,
     val text: String,
     val time: Long,
-    val image: ByteArray? = null, // Keep this for image data
-    @Transient var pendingIntent: PendingIntent? = null
+    val image: ByteArray? = null,
+    @Transient var pendingIntent: PendingIntent? = null, // This is not saved in the database
+    val appIcon: ByteArray? = null
 )
