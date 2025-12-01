@@ -1,0 +1,13 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/menu_latest"
+        android:title="Latest"
+        android:icon="@android:drawable/ic_menu_recent_history"/>
+
+    <item
+        android:id="@+id/menu_apps"
+        android:title="Apps"
+        android:icon="@android:drawable/ic_menu_sort_by_size"/>
+
+</menu>
