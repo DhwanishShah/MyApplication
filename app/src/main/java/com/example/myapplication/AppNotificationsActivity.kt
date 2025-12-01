@@ -3,27 +3,39 @@ package com.example.myapplication
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.appbar.MaterialToolbar
 
 class AppNotificationsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         setContentView(R.layout.activity_app_notifications)
 
         val pkg = intent.getStringExtra("pkg") ?: return
+        // **THE FIX**: Get the correct app name directly from the intent.
+        val appName = intent.getStringExtra("app_name") ?: pkg
+
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         val recycler = findViewById<RecyclerView>(R.id.recyclerAppNoti)
 
-        recycler.layoutManager = LinearLayoutManager(this)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        toolbar.setNavigationOnClickListener { onBackPressed() }
         
-        // 1. Pass an empty list to the adapter's constructor
-        // 2. Update the click listener to open the app, which is more reliable
+        // Set the title using the correct name.
+        title = appName
+
+        recycler.layoutManager = LinearLayoutManager(this)
         val adapter = NotificationAdapter(emptyList()) { notification ->
             try {
-                val intent = packageManager.getLaunchIntentForPackage(notification.pkg)
-                if (intent != null) {
-                    startActivity(intent)
+                val launchIntent = packageManager.getLaunchIntentForPackage(notification.pkg)
+                if (launchIntent != null) {
+                    startActivity(launchIntent)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -41,11 +53,8 @@ class AppNotificationsActivity : AppCompatActivity() {
                 val text = it.getString(it.getColumnIndexOrThrow("text"))
                 val time = it.getLong(it.getColumnIndexOrThrow("time"))
                 val image = it.getBlob(it.getColumnIndexOrThrow("image"))
-                
-                // 3. Get the app icon data from the cursor
                 val appIcon = it.getBlob(it.getColumnIndexOrThrow("app_icon"))
 
-                // 4. Instantiate the correct NotificationModel, removing the broken PendingIntent
                 list.add(
                     NotificationModel(
                         id = id,
@@ -54,7 +63,7 @@ class AppNotificationsActivity : AppCompatActivity() {
                         text = text,
                         time = time,
                         image = image,
-                        pendingIntent = null, // This is no longer used but kept for constructor shape
+                        pendingIntent = null,
                         appIcon = appIcon
                     )
                 )

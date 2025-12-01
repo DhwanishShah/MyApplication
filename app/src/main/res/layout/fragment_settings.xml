@@ -1,27 +1,43 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="8dp">
 
-    <TextView
-        android:id="@+id/dark_mode_option"
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Dark Mode"
-        android:padding="16dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:background="?attr/selectableItemBackground"/>
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp">
+        <TextView
+            android:id="@+id/dark_mode_option"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Dark Mode"
+            android:padding="16dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:background="?attr/selectableItemBackground"/>
+    </com.google.android.material.card.MaterialCardView>
 
-    <TextView
-        android:id="@+id/select_apps_option"
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Select Apps to Save"
-        android:padding="16dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:background="?attr/selectableItemBackground"/>
+        android:layout_marginTop="8dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp">
+        <TextView
+            android:id="@+id/select_apps_option"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select Apps to Save"
+            android:padding="16dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:background="?attr/selectableItemBackground"/>
+    </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>

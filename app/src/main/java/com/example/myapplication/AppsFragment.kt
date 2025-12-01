@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
@@ -24,6 +25,8 @@ class AppsFragment : Fragment(R.layout.fragment_apps), Searchable {
         adapter = AppAdapter(emptyList()) { app ->
             val intent = Intent(requireContext(), AppNotificationsActivity::class.java)
             intent.putExtra("pkg", app.packageName)
+            // **THE FIX**: Pass the correct app name to the next screen.
+            intent.putExtra("app_name", app.appName)
             startActivity(intent)
         }
         recyclerView.adapter = adapter
@@ -35,6 +38,7 @@ class AppsFragment : Fragment(R.layout.fragment_apps), Searchable {
     }
 
     private fun loadAppsFromDatabase() {
+        val pm = requireActivity().packageManager
         val cursor = NotificationDB.getDistinctApps(requireContext())
         val apps = mutableListOf<App>()
 
@@ -42,9 +46,18 @@ class AppsFragment : Fragment(R.layout.fragment_apps), Searchable {
             if (it.moveToFirst()) {
                 do {
                     val pkg = it.getString(it.getColumnIndexOrThrow("pkg"))
-                    val appName = it.getString(it.getColumnIndexOrThrow("app_name")) ?: pkg
-                    val appIconBytes = it.getBlob(it.getColumnIndexOrThrow("app_icon"))
+                    var appName = it.getString(it.getColumnIndexOrThrow("app_name"))
 
+                    if (appName == null) {
+                        try {
+                            val appInfo = pm.getApplicationInfo(pkg, 0)
+                            appName = pm.getApplicationLabel(appInfo).toString()
+                        } catch (e: PackageManager.NameNotFoundException) {
+                            appName = pkg
+                        }
+                    }
+
+                    val appIconBytes = it.getBlob(it.getColumnIndexOrThrow("app_icon"))
                     val appIcon = if (appIconBytes != null) {
                         val bitmap = BitmapFactory.decodeByteArray(appIconBytes, 0, appIconBytes.size)
                         BitmapDrawable(resources, bitmap)

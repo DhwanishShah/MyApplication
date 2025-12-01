@@ -4,14 +4,13 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <androidx.appcompat.widget.Toolbar
+    <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
         app:title="Select Apps"
         app:navigationIcon="?attr/homeAsUpIndicator"
-        app:titleTextColor="@android:color/white" />
+        style="@style/Widget.Material3.Toolbar.OnSurface" />
 
     <androidx.appcompat.widget.SwitchCompat
         android:id="@+id/select_all_switch"
