@@ -8,9 +8,12 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -19,6 +22,7 @@ class AppsFragment : Fragment(R.layout.fragment_apps), Searchable {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: AppAdapter
+    private lateinit var emptyView: ViewGroup
     private var allApps = listOf<App>()
     private var actionMode: ActionMode? = null
 
@@ -26,6 +30,10 @@ class AppsFragment : Fragment(R.layout.fragment_apps), Searchable {
         super.onViewCreated(view, savedInstanceState)
 
         recyclerView = view.findViewById(R.id.rvApps)
+        emptyView = view.findViewById(R.id.empty_view)
+        val emptyTextView = emptyView.findViewById<TextView>(R.id.empty_text)
+        emptyTextView.text = "When you receive notifications, the apps they came from will appear here."
+
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
 
         adapter = AppAdapter(emptyList(),
@@ -49,6 +57,8 @@ class AppsFragment : Fragment(R.layout.fragment_apps), Searchable {
             }
         )
         recyclerView.adapter = adapter
+
+        // The logic to show/hide the empty view is handled in loadAppsFromDatabase()
     }
 
     override fun onResume() {
@@ -92,6 +102,7 @@ class AppsFragment : Fragment(R.layout.fragment_apps), Searchable {
 
         allApps = apps
         adapter.updateData(allApps)
+        emptyView.isVisible = allApps.isEmpty()
     }
 
     override fun onSearchQuery(query: String) {
@@ -100,6 +111,7 @@ class AppsFragment : Fragment(R.layout.fragment_apps), Searchable {
             it.appName.contains(query, ignoreCase = true)
         }
         adapter.updateData(filteredList)
+        emptyView.isVisible = filteredList.isEmpty()
     }
 
     inner class ActionModeCallback : ActionMode.Callback {

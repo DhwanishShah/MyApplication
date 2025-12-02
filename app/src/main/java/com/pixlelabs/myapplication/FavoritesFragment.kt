@@ -4,9 +4,12 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -19,6 +22,7 @@ class FavoritesFragment : Fragment(R.layout.fragment_favorites) {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: NotificationAdapter
+    private lateinit var emptyView: ViewGroup
     private val viewModel: LatestViewModel by viewModels()
     private var actionMode: ActionMode? = null
 
@@ -26,6 +30,9 @@ class FavoritesFragment : Fragment(R.layout.fragment_favorites) {
         super.onViewCreated(view, savedInstanceState)
 
         recyclerView = view.findViewById(R.id.rvFavorites)
+        emptyView = view.findViewById(R.id.empty_view)
+        val emptyTextView = emptyView.findViewById<TextView>(R.id.empty_text)
+        emptyTextView.text = "Your favorite notifications will appear here."
 
         adapter = NotificationAdapter(
             listener = { notification ->
@@ -54,6 +61,13 @@ class FavoritesFragment : Fragment(R.layout.fragment_favorites) {
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
+
+        // Show/hide empty view based on adapter item count
+        adapter.addLoadStateListener {
+            if (isAdded) { // Ensure fragment is attached
+                emptyView.isVisible = adapter.itemCount == 0
+            }
+        }
 
         loadFavorites()
     }

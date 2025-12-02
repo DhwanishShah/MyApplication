@@ -5,9 +5,11 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -21,6 +23,7 @@ class LatestFragment : Fragment(R.layout.fragment_latest), Searchable, Filterabl
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: NotificationAdapter
+    private lateinit var emptyView: ViewGroup
     private val viewModel: LatestViewModel by viewModels()
     private var currentFilter = "All Time"
     private var customStartTime: Long? = null
@@ -31,6 +34,7 @@ class LatestFragment : Fragment(R.layout.fragment_latest), Searchable, Filterabl
         super.onViewCreated(view, savedInstanceState)
 
         recyclerView = view.findViewById(R.id.rvLatest)
+        emptyView = view.findViewById(R.id.empty_view)
 
         adapter = NotificationAdapter(
             listener = { notification ->
@@ -59,6 +63,13 @@ class LatestFragment : Fragment(R.layout.fragment_latest), Searchable, Filterabl
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
+
+        // Show/hide empty view based on adapter item count
+        adapter.addLoadStateListener {
+            if (isAdded) { // Ensure fragment is attached
+                emptyView.isVisible = adapter.itemCount == 0
+            }
+        }
 
         loadNotifications()
     }
@@ -153,7 +164,7 @@ class LatestFragment : Fragment(R.layout.fragment_latest), Searchable, Filterabl
             return true
         }
 
-        override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+        override fun onPrepareActionMode(mode:ActionMode, menu: Menu): Boolean {
             return false
         }
 
