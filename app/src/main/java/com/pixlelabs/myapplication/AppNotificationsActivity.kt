@@ -1,21 +1,25 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class AppNotificationsActivity : AppCompatActivity() {
 
     private lateinit var adapter: NotificationAdapter
     private var actionMode: ActionMode? = null
+    private val viewModel: LatestViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,7 +40,7 @@ class AppNotificationsActivity : AppCompatActivity() {
 
         recycler.layoutManager = LinearLayoutManager(this)
 
-        adapter = NotificationAdapter(emptyList(),
+        adapter = NotificationAdapter(
             listener = { notification ->
                 if (actionMode == null) {
                     try {
@@ -66,36 +70,13 @@ class AppNotificationsActivity : AppCompatActivity() {
     }
 
     private fun loadNotifications(pkg: String) {
-        val cursor = NotificationDB.getByPackage(this, pkg)
-        val list = mutableListOf<NotificationModel>()
-
-        cursor.use {
-            while (it.moveToNext()) {
-                val id = it.getInt(it.getColumnIndexOrThrow("id"))
-                val notificationTitle = it.getString(it.getColumnIndexOrThrow("title"))
-                val text = it.getString(it.getColumnIndexOrThrow("text"))
-                val time = it.getLong(it.getColumnIndexOrThrow("time"))
-                val image = it.getBlob(it.getColumnIndexOrThrow("image"))
-                val appIcon = it.getBlob(it.getColumnIndexOrThrow("app_icon"))
-                val isFavorite = it.getInt(it.getColumnIndexOrThrow("is_favorite")) == 1
-
-                list.add(
-                    NotificationModel(
-                        id = id,
-                        pkg = pkg,
-                        title = notificationTitle,
-                        text = text,
-                        time = time,
-                        image = image,
-                        pendingIntent = null,
-                        appIcon = appIcon,
-                        isFavorite = isFavorite
-                    )
-                )
+        val query = "SELECT * FROM notifications WHERE pkg = ? ORDER BY time DESC"
+        val args = arrayOf(pkg)
+        lifecycleScope.launch {
+            viewModel.getNotifications(this@AppNotificationsActivity, query, args).collectLatest { pagingData ->
+                adapter.submitData(pagingData)
             }
         }
-
-        adapter.updateList(list.sortedByDescending { it.time })
     }
 
     inner class ActionModeCallback : ActionMode.Callback {
@@ -109,22 +90,21 @@ class AppNotificationsActivity : AppCompatActivity() {
         }
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            val selectedItems = adapter.getSelectedItems()
             if (item.itemId == R.id.action_delete) {
                 AlertDialog.Builder(this@AppNotificationsActivity)
                     .setTitle("Delete Notifications")
                     .setMessage("Are you sure you want to delete the selected notifications? This action cannot be undone.")
                     .setPositiveButton("Delete") { _, _ ->
-                        val selectedIds = adapter.getSelectedItems().map { it.id }
-                        NotificationDB.delete(this@AppNotificationsActivity, selectedIds)
+                        NotificationDB.delete(this@AppNotificationsActivity, selectedItems.map { it.id })
                         mode.finish()
                     }
                     .setNegativeButton("Cancel", null)
                     .show()
                 return true
             } else if (item.itemId == R.id.action_favorite) {
-                val selectedIds = adapter.getSelectedItems().map { it.id }
-                for (id in selectedIds) {
-                    NotificationDB.setFavorite(this@AppNotificationsActivity, id, true)
+                for (notification in selectedItems) {
+                    NotificationDB.setFavorite(this@AppNotificationsActivity, notification.id, true)
                 }
                 mode.finish()
                 return true
@@ -135,7 +115,6 @@ class AppNotificationsActivity : AppCompatActivity() {
         override fun onDestroyActionMode(mode: ActionMode) {
             adapter.clearSelection()
             actionMode = null
-            // The activity context is always available, so no need for a check here.
             loadNotifications(intent.getStringExtra("pkg") ?: "")
         }
     }

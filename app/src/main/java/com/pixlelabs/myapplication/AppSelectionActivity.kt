@@ -1,6 +1,5 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
@@ -32,7 +31,7 @@ class AppSelectionActivity : AppCompatActivity() {
         recyclerView.adapter = adapter
 
         selectAllSwitch.setOnCheckedChangeListener { _, isChecked ->
-            val prefs = getSharedPreferences("prefs", Context.MODE_PRIVATE).edit()
+            val prefs = getSharedPreferences("prefs", MODE_PRIVATE).edit()
             for (app in sortedApps) {
                 prefs.putBoolean(app.packageName, isChecked)
             }

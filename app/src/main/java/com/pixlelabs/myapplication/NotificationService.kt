@@ -1,14 +1,12 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
 import android.app.Notification
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import java.io.ByteArrayOutputStream
@@ -17,7 +15,7 @@ class NotificationService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val packageName = sbn.packageName
-        val prefs = getSharedPreferences("prefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("prefs", MODE_PRIVATE)
 
         // Only save if the app is enabled in settings.
         if (!prefs.getBoolean(packageName, true)) {

@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
 import android.graphics.drawable.Drawable
 

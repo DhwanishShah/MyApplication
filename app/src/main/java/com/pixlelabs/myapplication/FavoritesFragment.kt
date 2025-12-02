@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
 import android.os.Bundle
 import android.view.Menu
@@ -8,13 +8,18 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class FavoritesFragment : Fragment(R.layout.fragment_favorites) {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: NotificationAdapter
+    private val viewModel: LatestViewModel by viewModels()
     private var actionMode: ActionMode? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -22,7 +27,7 @@ class FavoritesFragment : Fragment(R.layout.fragment_favorites) {
 
         recyclerView = view.findViewById(R.id.rvFavorites)
 
-        adapter = NotificationAdapter(emptyList(),
+        adapter = NotificationAdapter(
             listener = { notification ->
                 if (actionMode == null) {
                     try {
@@ -49,6 +54,8 @@ class FavoritesFragment : Fragment(R.layout.fragment_favorites) {
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
+
+        loadFavorites()
     }
 
     override fun onResume() {
@@ -58,24 +65,11 @@ class FavoritesFragment : Fragment(R.layout.fragment_favorites) {
 
     private fun loadFavorites() {
         if (!isAdded) return
-        val cursor = NotificationDB.getFavorites(requireContext())
-        val favorites = mutableListOf<NotificationModel>()
-
-        cursor.use {
-            while (it.moveToNext()) {
-                val id = it.getInt(it.getColumnIndexOrThrow("id"))
-                val pkg = it.getString(it.getColumnIndexOrThrow("pkg"))
-                val title = it.getString(it.getColumnIndexOrThrow("title"))
-                val text = it.getString(it.getColumnIndexOrThrow("text"))
-                val time = it.getLong(it.getColumnIndexOrThrow("time"))
-                val image = it.getBlob(it.getColumnIndexOrThrow("image"))
-                val appIcon = it.getBlob(it.getColumnIndexOrThrow("app_icon"))
-                val isFavorite = it.getInt(it.getColumnIndexOrThrow("is_favorite")) == 1
-
-                favorites.add(NotificationModel(id, pkg, title, text, time, image, null, appIcon, isFavorite))
+        lifecycleScope.launch {
+            viewModel.getFavorites(requireContext()).collectLatest { pagingData ->
+                adapter.submitData(pagingData)
             }
         }
-        adapter.updateList(favorites)
     }
 
     inner class ActionModeCallback : ActionMode.Callback {
@@ -94,22 +88,22 @@ class FavoritesFragment : Fragment(R.layout.fragment_favorites) {
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
             if (!isAdded) return false
+            val selectedItems = adapter.getSelectedItems()
+
             if (item.itemId == R.id.action_delete) {
                 AlertDialog.Builder(requireContext())
                     .setTitle("Delete Notifications")
                     .setMessage("Are you sure you want to delete the selected notifications? This action cannot be undone.")
                     .setPositiveButton("Delete") { _, _ ->
-                        val selectedIds = adapter.getSelectedItems().map { it.id }
-                        NotificationDB.delete(requireContext(), selectedIds)
+                        NotificationDB.delete(requireContext(), selectedItems.map { it.id })
                         mode.finish()
                     }
                     .setNegativeButton("Cancel", null)
                     .show()
                 return true
             } else if (item.itemId == R.id.action_favorite) {
-                val selectedIds = adapter.getSelectedItems().map { it.id }
-                for (id in selectedIds) {
-                    NotificationDB.setFavorite(requireContext(), id, false)
+                for (notification in selectedItems) {
+                    NotificationDB.setFavorite(requireContext(), notification.id, false)
                 }
                 mode.finish()
                 return true

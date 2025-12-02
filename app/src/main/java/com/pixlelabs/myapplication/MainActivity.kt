@@ -1,11 +1,8 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
-import android.content.Intent
 import android.os.Bundle
-import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.view.ViewCompat
@@ -18,8 +15,6 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var currentFragment: Fragment
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -29,17 +24,12 @@ class MainActivity : AppCompatActivity() {
         val appBar = findViewById<AppBarLayout>(R.id.app_bar_layout)
 
         setSupportActionBar(findViewById(R.id.toolbar))
-        // **THE FIX**: Remove the title from the main toolbar
         supportActionBar?.title = ""
 
         ViewCompat.setOnApplyWindowInsetsListener(appBar) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.updatePadding(top = systemBars.top)
             insets
-        }
-
-        if (!isNotificationListenerEnabled()) {
-            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
 
         if (savedInstanceState == null) {
@@ -54,7 +44,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.menu_favorites -> loadFragment(FavoritesFragment())
                 R.id.menu_settings -> loadFragment(SettingsFragment())
             }
-            invalidateOptionsMenu() 
+            invalidateOptionsMenu()
             true
         }
     }
@@ -63,6 +53,8 @@ class MainActivity : AppCompatActivity() {
         menuInflater.inflate(R.menu.main_menu, menu)
         val searchItem = menu.findItem(R.id.action_search)
         val filterItem = menu.findItem(R.id.action_filter)
+
+        val currentFragment = supportFragmentManager.findFragmentById(R.id.frameContainer)
 
         val isSearchable = currentFragment is Searchable
         val isFilterable = currentFragment is Filterable
@@ -74,7 +66,8 @@ class MainActivity : AppCompatActivity() {
             searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
                 override fun onQueryTextSubmit(query: String?): Boolean = false
                 override fun onQueryTextChange(newText: String?): Boolean {
-                    (currentFragment as? Searchable)?.onSearchQuery(newText.orEmpty())
+                    val fragment = supportFragmentManager.findFragmentById(R.id.frameContainer)
+                    (fragment as? Searchable)?.onSearchQuery(newText.orEmpty())
                     return true
                 }
             })
@@ -84,6 +77,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        val currentFragment = supportFragmentManager.findFragmentById(R.id.frameContainer)
         if (item.itemId == R.id.action_filter) {
             (currentFragment as? Filterable)?.showFilterDialog()
             return true
@@ -92,18 +86,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadFragment(fragment: Fragment) {
-        currentFragment = fragment
         supportFragmentManager.beginTransaction()
             .replace(R.id.frameContainer, fragment)
             .commit()
-    }
-
-    private fun isNotificationListenerEnabled(): Boolean {
-        val enabledListeners = Settings.Secure.getString(
-            contentResolver,
-            "enabled_notification_listeners"
-        ) ?: ""
-        return enabledListeners.contains(packageName)
     }
 }
 

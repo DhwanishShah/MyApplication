@@ -1,22 +1,22 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.AnimationUtils
 import android.graphics.BitmapFactory
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.paging.PagingDataAdapter
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import java.text.SimpleDateFormat
 import java.util.*
 
 class NotificationAdapter(
-    private var notifications: List<NotificationModel>,
     private val listener: (NotificationModel) -> Unit,
     private val selectionListener: (Int) -> Unit
-) : RecyclerView.Adapter<NotificationAdapter.ViewHolder>() {
+) : PagingDataAdapter<NotificationModel, NotificationAdapter.ViewHolder>(NotificationDiffCallback()) {
 
     private val selectedItems = mutableSetOf<Int>()
     var isSelectionMode = false
@@ -28,26 +28,25 @@ class NotificationAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val item = notifications[position]
-        holder.bind(item)
-        holder.itemView.animation = AnimationUtils.loadAnimation(holder.itemView.context, R.anim.fade_in)
+        val item = getItem(position)
+        if (item != null) {
+            holder.bind(item)
+        }
     }
 
-    override fun getItemCount() = notifications.size
-
     fun getSelectedItems(): List<NotificationModel> {
-        return selectedItems.map { notifications[it] }
+        val selectedPositions = selectedItems.toList()
+        val selectedNotifications = mutableListOf<NotificationModel>()
+        for (position in selectedPositions) {
+            getItem(position)?.let { selectedNotifications.add(it) }
+        }
+        return selectedNotifications
     }
 
     fun clearSelection() {
         selectedItems.clear()
         notifyDataSetChanged()
         isSelectionMode = false
-    }
-
-    fun updateList(list: List<NotificationModel>) {
-        notifications = list
-        notifyDataSetChanged()
     }
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -99,6 +98,16 @@ class NotificationAdapter(
             }
             cardView.isChecked = selectedItems.contains(position)
             selectionListener(selectedItems.size)
+        }
+    }
+
+    class NotificationDiffCallback : DiffUtil.ItemCallback<NotificationModel>() {
+        override fun areItemsTheSame(oldItem: NotificationModel, newItem: NotificationModel): Boolean {
+            return oldItem.id == newItem.id
+        }
+
+        override fun areContentsTheSame(oldItem: NotificationModel, newItem: NotificationModel): Boolean {
+            return oldItem == newItem
         }
     }
 }

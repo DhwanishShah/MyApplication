@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
 import android.content.Intent
 import android.os.Bundle
@@ -26,7 +26,8 @@ class AppsActivity : AppCompatActivity() {
     }
 
     private fun loadApps() {
-        val cursor = NotificationDB.getAll(this)
+        // **THE FIX**: Use the correct database method to get the list of apps.
+        val cursor = NotificationDB.getDistinctApps(this)
         val set = HashSet<String>()
 
         cursor.use {

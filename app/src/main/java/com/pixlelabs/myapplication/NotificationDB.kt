@@ -1,10 +1,12 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import androidx.paging.PagingSource
+import androidx.paging.PagingState
 
 object NotificationDB {
 
@@ -33,11 +35,44 @@ object NotificationDB {
         db(context).insert(TABLE, null, values)
     }
 
-    fun getAll(context: Context): Cursor {
-        return db(context).rawQuery(
-            "SELECT * FROM $TABLE ORDER BY time DESC",
-            null
-        )
+    // The PagingSource for notifications
+    class NotifPagingSource(private val context: Context, private val sqlQuery: String, private val selectionArgs: Array<String>?) : PagingSource<Int, NotificationModel>() {
+        override suspend fun load(params: LoadParams<Int>): LoadResult<Int, NotificationModel> {
+            val pageNumber = params.key ?: 0
+            val pageSize = params.loadSize
+            val offset = pageNumber * pageSize
+
+            return try {
+                val cursor = db(context).rawQuery("$sqlQuery LIMIT $pageSize OFFSET $offset", selectionArgs)
+                val notifications = mutableListOf<NotificationModel>()
+                cursor.use {
+                    while (it.moveToNext()) {
+                        val id = it.getInt(it.getColumnIndexOrThrow("id"))
+                        val pkg = it.getString(it.getColumnIndexOrThrow("pkg"))
+                        val title = it.getString(it.getColumnIndexOrThrow("title"))
+                        val text = it.getString(it.getColumnIndexOrThrow("text"))
+                        val time = it.getLong(it.getColumnIndexOrThrow("time"))
+                        val image = it.getBlob(it.getColumnIndexOrThrow("image"))
+                        val appIcon = it.getBlob(it.getColumnIndexOrThrow("app_icon"))
+                        val isFavorite = it.getInt(it.getColumnIndexOrThrow("is_favorite")) == 1
+                        notifications.add(NotificationModel(id, pkg, title, text, time, image, null, appIcon, isFavorite))
+                    }
+                }
+                LoadResult.Page(
+                    data = notifications,
+                    prevKey = if (pageNumber == 0) null else pageNumber - 1,
+                    nextKey = if (notifications.isEmpty()) null else pageNumber + 1
+                )
+            } catch (e: Exception) {
+                LoadResult.Error(e)
+            }
+        }
+
+        override fun getRefreshKey(state: PagingState<Int, NotificationModel>): Int? {
+            return state.anchorPosition?.let {
+                state.closestPageToPosition(it)?.prevKey?.plus(1) ?: state.closestPageToPosition(it)?.nextKey?.minus(1)
+            }
+        }
     }
 
     fun getFavorites(context: Context): Cursor {
@@ -66,20 +101,6 @@ object NotificationDB {
         val args = packageNames.toTypedArray()
         val placeholders = packageNames.map { "?" }.joinToString()
         db(context).delete(TABLE, "pkg IN ($placeholders)", args)
-    }
-
-    fun getSince(context: Context, time: Long): Cursor {
-        return db(context).rawQuery(
-            "SELECT * FROM $TABLE WHERE time >= ? ORDER BY time DESC",
-            arrayOf(time.toString())
-        )
-    }
-
-    fun getBetween(context: Context, startTime: Long, endTime: Long): Cursor {
-        return db(context).rawQuery(
-            "SELECT * FROM $TABLE WHERE time BETWEEN ? AND ? ORDER BY time DESC",
-            arrayOf(startTime.toString(), endTime.toString())
-        )
     }
 
     fun getDistinctApps(context: Context): Cursor {

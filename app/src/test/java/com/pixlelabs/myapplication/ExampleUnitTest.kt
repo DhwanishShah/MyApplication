@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
 import org.junit.Test
 

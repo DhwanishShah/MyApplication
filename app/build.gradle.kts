@@ -4,14 +4,14 @@ plugins {
 }
 
 android {
-    namespace = "com.example.myapplication"
+    namespace = "com.pixlelabs.myapplication"
     compileSdk = 33
 
     defaultConfig {
-        applicationId = "com.example.myapplication"
+        applicationId = "com.pixlelabs.myapplication"
         minSdk = 24
-        targetSdk = 33
-        versionCode = 1
+        targetSdk = 35
+        versionCode = 2
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -39,10 +39,11 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.9.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
-    // Downgrading Material to a version compatible with compileSdk 33
     implementation("com.google.android.material:material:1.9.0") 
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.paging:paging-runtime-ktx:3.2.1")
+    // ViewModel delegate dependency
+    implementation("androidx.fragment:fragment-ktx:1.6.2")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

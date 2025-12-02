@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
 import android.app.DatePickerDialog
 import android.os.Bundle
@@ -9,15 +9,19 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 class LatestFragment : Fragment(R.layout.fragment_latest), Searchable, Filterable {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: NotificationAdapter
-    private var allNotifications = listOf<NotificationModel>()
+    private val viewModel: LatestViewModel by viewModels()
     private var currentFilter = "All Time"
     private var customStartTime: Long? = null
     private var customEndTime: Long? = null
@@ -28,7 +32,7 @@ class LatestFragment : Fragment(R.layout.fragment_latest), Searchable, Filterabl
 
         recyclerView = view.findViewById(R.id.rvLatest)
 
-        adapter = NotificationAdapter(emptyList(),
+        adapter = NotificationAdapter(
             listener = { notification ->
                 if (actionMode == null) {
                     try {
@@ -65,41 +69,36 @@ class LatestFragment : Fragment(R.layout.fragment_latest), Searchable, Filterabl
     }
 
     private fun loadNotifications() {
-        // **THE FIX**: Only access context if the fragment is attached.
         if (!isAdded) return
 
-        val cursor = when (currentFilter) {
-            "Last Hour" -> NotificationDB.getSince(requireContext(), System.currentTimeMillis() - 3600 * 1000)
-            "Last 24 Hours" -> NotificationDB.getSince(requireContext(), System.currentTimeMillis() - 24 * 3600 * 1000)
-            "Custom Range" -> NotificationDB.getBetween(requireContext(), customStartTime ?: 0, customEndTime ?: Long.MAX_VALUE)
-            else -> NotificationDB.getAll(requireContext())
+        val queryInfo = when (currentFilter) {
+            "Last Hour" -> Pair("SELECT * FROM notifications WHERE time >= ? ORDER BY time DESC", arrayOf((System.currentTimeMillis() - 3600 * 1000).toString()))
+            "Last 24 Hours" -> Pair("SELECT * FROM notifications WHERE time >= ? ORDER BY time DESC", arrayOf((System.currentTimeMillis() - 24 * 3600 * 1000).toString()))
+            "Custom Range" -> Pair("SELECT * FROM notifications WHERE time BETWEEN ? AND ? ORDER BY time DESC", arrayOf((customStartTime ?: 0).toString(), (customEndTime ?: Long.MAX_VALUE).toString()))
+            else -> Pair("SELECT * FROM notifications ORDER BY time DESC", null)
         }
 
-        val notifications = mutableListOf<NotificationModel>()
-        cursor.use {
-            while (it.moveToNext()) {
-                val id = it.getInt(it.getColumnIndexOrThrow("id"))
-                val pkg = it.getString(it.getColumnIndexOrThrow("pkg"))
-                val title = it.getString(it.getColumnIndexOrThrow("title"))
-                val text = it.getString(it.getColumnIndexOrThrow("text"))
-                val time = it.getLong(it.getColumnIndexOrThrow("time"))
-                val image = it.getBlob(it.getColumnIndexOrThrow("image"))
-                val appIcon = it.getBlob(it.getColumnIndexOrThrow("app_icon"))
-                val isFavorite = it.getInt(it.getColumnIndexOrThrow("is_favorite")) == 1
-
-                notifications.add(NotificationModel(id, pkg, title, text, time, image, null, appIcon, isFavorite))
+        lifecycleScope.launch {
+            viewModel.getNotifications(requireContext(), queryInfo.first, queryInfo.second).collectLatest { pagingData ->
+                adapter.submitData(pagingData)
             }
         }
-        allNotifications = notifications
-        adapter.updateList(allNotifications)
     }
 
     override fun onSearchQuery(query: String) {
         if (!isAdded) return
-        val filteredList = allNotifications.filter {
-            it.title.contains(query, ignoreCase = true) || it.text.contains(query, ignoreCase = true)
+        val searchQuery = if (query.isEmpty()) {
+            "SELECT * FROM notifications ORDER BY time DESC"
+        } else {
+            "SELECT * FROM notifications WHERE title LIKE ? OR text LIKE ? ORDER BY time DESC"
         }
-        adapter.updateList(filteredList)
+        val args = if (query.isEmpty()) null else arrayOf("%$query%", "%$query%")
+
+        lifecycleScope.launch {
+            viewModel.getNotifications(requireContext(), searchQuery, args).collectLatest { pagingData ->
+                adapter.submitData(pagingData)
+            }
+        }
     }
 
     override fun showFilterDialog() {
@@ -160,22 +159,23 @@ class LatestFragment : Fragment(R.layout.fragment_latest), Searchable, Filterabl
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
             if (!isAdded) return false
+
+            val selectedItems = adapter.getSelectedItems()
+
             if (item.itemId == R.id.action_delete) {
                 AlertDialog.Builder(requireContext())
                     .setTitle("Delete Notifications")
                     .setMessage("Are you sure you want to delete the selected notifications? This action cannot be undone.")
                     .setPositiveButton("Delete") { _, _ ->
-                        val selectedIds = adapter.getSelectedItems().map { it.id }
-                        NotificationDB.delete(requireContext(), selectedIds)
+                        NotificationDB.delete(requireContext(), selectedItems.map { it.id })
                         mode.finish()
                     }
                     .setNegativeButton("Cancel", null)
                     .show()
                 return true
             } else if (item.itemId == R.id.action_favorite) {
-                val selectedIds = adapter.getSelectedItems().map { it.id }
-                for (id in selectedIds) {
-                    NotificationDB.setFavorite(requireContext(), id, true)
+                for (notification in selectedItems) {
+                    NotificationDB.setFavorite(requireContext(), notification.id, true)
                 }
                 mode.finish()
                 return true

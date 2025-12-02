@@ -1,18 +1,23 @@
-package com.example.myapplication
+package com.pixlelabs.myapplication
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class LatestActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: NotificationAdapter
+    private val viewModel: LatestViewModel by viewModels()
     private var actionMode: ActionMode? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -21,8 +26,7 @@ class LatestActivity : AppCompatActivity() {
 
         recyclerView = findViewById(R.id.recyclerLatest)
 
-        // **THE FIX**: Implement multi-select and provide all required adapter arguments
-        adapter = NotificationAdapter(emptyList(), 
+        adapter = NotificationAdapter(
             listener = { notification ->
                 if (actionMode == null) {
                     try {
@@ -57,37 +61,12 @@ class LatestActivity : AppCompatActivity() {
     }
 
     private fun loadNotifications() {
-        val cursor = NotificationDB.getAll(this)
-        val notifications = mutableListOf<NotificationModel>()
-
-        cursor.use {
-            while (it.moveToNext()) {
-                val id = it.getInt(it.getColumnIndexOrThrow("id"))
-                val pkg = it.getString(it.getColumnIndexOrThrow("pkg"))
-                val title = it.getString(it.getColumnIndexOrThrow("title"))
-                val text = it.getString(it.getColumnIndexOrThrow("text"))
-                val time = it.getLong(it.getColumnIndexOrThrow("time"))
-                val image = it.getBlob(it.getColumnIndexOrThrow("image"))
-                val appIcon = it.getBlob(it.getColumnIndexOrThrow("app_icon"))
-                val isFavorite = it.getInt(it.getColumnIndexOrThrow("is_favorite")) == 1
-
-                notifications.add(
-                    NotificationModel(
-                        id = id,
-                        pkg = pkg,
-                        title = title,
-                        text = text,
-                        time = time,
-                        image = image,
-                        pendingIntent = null,
-                        appIcon = appIcon,
-                        isFavorite = isFavorite
-                    )
-                )
+        val query = "SELECT * FROM notifications ORDER BY time DESC"
+        lifecycleScope.launch {
+            viewModel.getNotifications(this@LatestActivity, query, null).collectLatest { pagingData ->
+                adapter.submitData(pagingData)
             }
         }
-
-        adapter.updateList(notifications)
     }
 
     inner class ActionModeCallback : ActionMode.Callback {
@@ -101,9 +80,21 @@ class LatestActivity : AppCompatActivity() {
         }
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
-            if (item.itemId == R.id.action_favorite) {
-                val selected = adapter.getSelectedItems()
-                for (notification in selected) {
+            val selectedItems = adapter.getSelectedItems()
+
+            if (item.itemId == R.id.action_delete) {
+                AlertDialog.Builder(this@LatestActivity)
+                    .setTitle("Delete Notifications")
+                    .setMessage("Are you sure you want to delete the selected notifications? This action cannot be undone.")
+                    .setPositiveButton("Delete") { _, _ ->
+                        NotificationDB.delete(this@LatestActivity, selectedItems.map { it.id })
+                        mode.finish()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+                return true
+            } else if (item.itemId == R.id.action_favorite) {
+                for (notification in selectedItems) {
                     NotificationDB.setFavorite(this@LatestActivity, notification.id, true)
                 }
                 mode.finish()
