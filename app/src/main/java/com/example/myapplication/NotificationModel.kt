@@ -10,5 +10,6 @@ data class NotificationModel(
     val time: Long,
     val image: ByteArray? = null,
     @Transient var pendingIntent: PendingIntent? = null, // This is not saved in the database
-    val appIcon: ByteArray? = null
+    val appIcon: ByteArray? = null,
+    var isFavorite: Boolean = false
 )

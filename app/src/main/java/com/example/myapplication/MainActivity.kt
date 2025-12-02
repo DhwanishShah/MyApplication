@@ -27,11 +27,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val appBar = findViewById<AppBarLayout>(R.id.app_bar_layout)
-        val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNav)
 
         setSupportActionBar(findViewById(R.id.toolbar))
+        // **THE FIX**: Remove the title from the main toolbar
+        supportActionBar?.title = ""
 
-        // **THE FIX**: Restoring the inset listener for the top app bar.
         ViewCompat.setOnApplyWindowInsetsListener(appBar) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.updatePadding(top = systemBars.top)
@@ -46,13 +46,15 @@ class MainActivity : AppCompatActivity() {
             loadFragment(LatestFragment())
         }
 
+        val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNav)
         bottomNav.setOnItemSelectedListener {
             when (it.itemId) {
                 R.id.menu_latest -> loadFragment(LatestFragment())
                 R.id.menu_apps -> loadFragment(AppsFragment())
+                R.id.menu_favorites -> loadFragment(FavoritesFragment())
                 R.id.menu_settings -> loadFragment(SettingsFragment())
             }
-            invalidateOptionsMenu() // This will redraw the menu
+            invalidateOptionsMenu() 
             true
         }
     }
@@ -62,7 +64,6 @@ class MainActivity : AppCompatActivity() {
         val searchItem = menu.findItem(R.id.action_search)
         val filterItem = menu.findItem(R.id.action_filter)
 
-        // Show/hide icons based on the current fragment
         val isSearchable = currentFragment is Searchable
         val isFilterable = currentFragment is Filterable
         searchItem.isVisible = isSearchable

@@ -8,6 +8,10 @@
         android:title="Apps"
         android:icon="@android:drawable/ic_menu_sort_by_size" />
     <item
+        android:id="@+id/menu_favorites"
+        android:title="Favorites"
+        android:icon="@android:drawable/btn_star_big_on" />
+    <item
         android:id="@+id/menu_settings"
         android:title="Settings"
         android:icon="@android:drawable/ic_menu_preferences" />

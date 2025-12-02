@@ -1,32 +1,32 @@
 package com.example.myapplication
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
+import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
-class LatestActivity : AppCompatActivity() {
+class FavoritesFragment : Fragment(R.layout.fragment_favorites) {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: NotificationAdapter
     private var actionMode: ActionMode? = null
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_latest)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
-        recyclerView = findViewById(R.id.recyclerLatest)
+        recyclerView = view.findViewById(R.id.rvFavorites)
 
-        // **THE FIX**: Implement multi-select and provide all required adapter arguments
-        adapter = NotificationAdapter(emptyList(), 
+        adapter = NotificationAdapter(emptyList(),
             listener = { notification ->
                 if (actionMode == null) {
                     try {
-                        val intent = packageManager.getLaunchIntentForPackage(notification.pkg)
+                        val intent = requireContext().packageManager.getLaunchIntentForPackage(notification.pkg)
                         if (intent != null) {
                             startActivity(intent)
                         }
@@ -38,7 +38,7 @@ class LatestActivity : AppCompatActivity() {
             selectionListener = { count ->
                 if (count > 0) {
                     if (actionMode == null) {
-                        actionMode = startSupportActionMode(ActionModeCallback())
+                        actionMode = (activity as? AppCompatActivity)?.startSupportActionMode(ActionModeCallback())
                     }
                     actionMode?.title = "$count selected"
                 } else {
@@ -47,18 +47,19 @@ class LatestActivity : AppCompatActivity() {
             }
         )
 
-        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
     }
 
     override fun onResume() {
         super.onResume()
-        loadNotifications()
+        loadFavorites()
     }
 
-    private fun loadNotifications() {
-        val cursor = NotificationDB.getAll(this)
-        val notifications = mutableListOf<NotificationModel>()
+    private fun loadFavorites() {
+        if (!isAdded) return
+        val cursor = NotificationDB.getFavorites(requireContext())
+        val favorites = mutableListOf<NotificationModel>()
 
         cursor.use {
             while (it.moveToNext()) {
@@ -71,23 +72,10 @@ class LatestActivity : AppCompatActivity() {
                 val appIcon = it.getBlob(it.getColumnIndexOrThrow("app_icon"))
                 val isFavorite = it.getInt(it.getColumnIndexOrThrow("is_favorite")) == 1
 
-                notifications.add(
-                    NotificationModel(
-                        id = id,
-                        pkg = pkg,
-                        title = title,
-                        text = text,
-                        time = time,
-                        image = image,
-                        pendingIntent = null,
-                        appIcon = appIcon,
-                        isFavorite = isFavorite
-                    )
-                )
+                favorites.add(NotificationModel(id, pkg, title, text, time, image, null, appIcon, isFavorite))
             }
         }
-
-        adapter.updateList(notifications)
+        adapter.updateList(favorites)
     }
 
     inner class ActionModeCallback : ActionMode.Callback {
@@ -97,14 +85,31 @@ class LatestActivity : AppCompatActivity() {
         }
 
         override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
-            return false
+            if (!isAdded) return false
+            val favoriteItem = menu.findItem(R.id.action_favorite)
+            favoriteItem.setIcon(android.R.drawable.btn_star_big_off)
+            favoriteItem.setTitle("Unfavorite")
+            return true
         }
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
-            if (item.itemId == R.id.action_favorite) {
-                val selected = adapter.getSelectedItems()
-                for (notification in selected) {
-                    NotificationDB.setFavorite(this@LatestActivity, notification.id, true)
+            if (!isAdded) return false
+            if (item.itemId == R.id.action_delete) {
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Delete Notifications")
+                    .setMessage("Are you sure you want to delete the selected notifications? This action cannot be undone.")
+                    .setPositiveButton("Delete") { _, _ ->
+                        val selectedIds = adapter.getSelectedItems().map { it.id }
+                        NotificationDB.delete(requireContext(), selectedIds)
+                        mode.finish()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+                return true
+            } else if (item.itemId == R.id.action_favorite) {
+                val selectedIds = adapter.getSelectedItems().map { it.id }
+                for (id in selectedIds) {
+                    NotificationDB.setFavorite(requireContext(), id, false)
                 }
                 mode.finish()
                 return true
@@ -115,7 +120,9 @@ class LatestActivity : AppCompatActivity() {
         override fun onDestroyActionMode(mode: ActionMode) {
             adapter.clearSelection()
             actionMode = null
-            loadNotifications()
+            if (isAdded) {
+                loadFavorites()
+            }
         }
     }
 }

@@ -9,7 +9,7 @@ import android.database.sqlite.SQLiteOpenHelper
 object NotificationDB {
 
     private const val DB_NAME = "notif.db"
-    private const val DB_VERSION = 4
+    private const val DB_VERSION = 5
     private const val TABLE = "notifications"
 
     private fun db(context: Context): SQLiteDatabase {
@@ -28,6 +28,7 @@ object NotificationDB {
             put("image", image)
             put("app_name", appName)
             put("app_icon", appIcon)
+            put("is_favorite", 0)
         }
         db(context).insert(TABLE, null, values)
     }
@@ -37,6 +38,34 @@ object NotificationDB {
             "SELECT * FROM $TABLE ORDER BY time DESC",
             null
         )
+    }
+
+    fun getFavorites(context: Context): Cursor {
+        return db(context).rawQuery(
+            "SELECT * FROM $TABLE WHERE is_favorite = 1 ORDER BY time DESC",
+            null
+        )
+    }
+
+    fun setFavorite(context: Context, id: Int, isFavorite: Boolean) {
+        val values = ContentValues().apply {
+            put("is_favorite", if (isFavorite) 1 else 0)
+        }
+        db(context).update(TABLE, values, "id = ?", arrayOf(id.toString()))
+    }
+
+    fun delete(context: Context, ids: List<Int>) {
+        if (ids.isEmpty()) return
+        val args = ids.map { it.toString() }.toTypedArray()
+        val placeholders = ids.map { "?" }.joinToString()
+        db(context).delete(TABLE, "id IN ($placeholders)", args)
+    }
+
+    fun deleteByPackage(context: Context, packageNames: List<String>) {
+        if (packageNames.isEmpty()) return
+        val args = packageNames.toTypedArray()
+        val placeholders = packageNames.map { "?" }.joinToString()
+        db(context).delete(TABLE, "pkg IN ($placeholders)", args)
     }
 
     fun getSince(context: Context, time: Long): Cursor {
@@ -82,7 +111,8 @@ object NotificationDB {
                     pending_intent BLOB,
                     image BLOB,
                     app_name TEXT,
-                    app_icon BLOB
+                    app_icon BLOB,
+                    is_favorite INTEGER DEFAULT 0
                 )
                 """.trimIndent()
             )
@@ -98,6 +128,9 @@ object NotificationDB {
             if (oldVersion < 4) {
                 db.execSQL("ALTER TABLE $TABLE ADD COLUMN app_name TEXT")
                 db.execSQL("ALTER TABLE $TABLE ADD COLUMN app_icon BLOB")
+            }
+            if (oldVersion < 5) {
+                db.execSQL("ALTER TABLE $TABLE ADD COLUMN is_favorite INTEGER DEFAULT 0")
             }
         }
     }
