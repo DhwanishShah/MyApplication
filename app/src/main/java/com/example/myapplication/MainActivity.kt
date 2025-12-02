@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Menu
+import android.view.MenuItem
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.view.ViewCompat
@@ -29,16 +31,10 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(findViewById(R.id.toolbar))
 
-        // Apply insets for the status bar (notch) and navigation bar (gestures)
+        // **THE FIX**: Restoring the inset listener for the top app bar.
         ViewCompat.setOnApplyWindowInsetsListener(appBar) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.updatePadding(top = systemBars.top)
-            insets
-        }
-
-        ViewCompat.setOnApplyWindowInsetsListener(bottomNav) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.updatePadding(bottom = systemBars.bottom)
             insets
         }
 
@@ -56,6 +52,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.menu_apps -> loadFragment(AppsFragment())
                 R.id.menu_settings -> loadFragment(SettingsFragment())
             }
+            invalidateOptionsMenu() // This will redraw the menu
             true
         }
     }
@@ -63,19 +60,34 @@ class MainActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
         val searchItem = menu.findItem(R.id.action_search)
-        val searchView = searchItem.actionView as SearchView
+        val filterItem = menu.findItem(R.id.action_filter)
 
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String?): Boolean {
-                return false
-            }
+        // Show/hide icons based on the current fragment
+        val isSearchable = currentFragment is Searchable
+        val isFilterable = currentFragment is Filterable
+        searchItem.isVisible = isSearchable
+        filterItem.isVisible = isFilterable
 
-            override fun onQueryTextChange(newText: String?): Boolean {
-                (currentFragment as? Searchable)?.onSearchQuery(newText.orEmpty())
-                return true
-            }
-        })
+        if (isSearchable) {
+            val searchView = searchItem.actionView as SearchView
+            searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+                override fun onQueryTextSubmit(query: String?): Boolean = false
+                override fun onQueryTextChange(newText: String?): Boolean {
+                    (currentFragment as? Searchable)?.onSearchQuery(newText.orEmpty())
+                    return true
+                }
+            })
+        }
+
         return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.action_filter) {
+            (currentFragment as? Filterable)?.showFilterDialog()
+            return true
+        }
+        return super.onOptionsItemSelected(item)
     }
 
     private fun loadFragment(fragment: Fragment) {
@@ -96,4 +108,8 @@ class MainActivity : AppCompatActivity() {
 
 interface Searchable {
     fun onSearchQuery(query: String)
+}
+
+interface Filterable {
+    fun showFilterDialog()
 }

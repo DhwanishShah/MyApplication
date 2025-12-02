@@ -9,7 +9,7 @@ import android.database.sqlite.SQLiteOpenHelper
 object NotificationDB {
 
     private const val DB_NAME = "notif.db"
-    private const val DB_VERSION = 4 // Upgraded for app_name and app_icon
+    private const val DB_VERSION = 4
     private const val TABLE = "notifications"
 
     private fun db(context: Context): SQLiteDatabase {
@@ -39,7 +39,20 @@ object NotificationDB {
         )
     }
 
-    // Updated query to sort apps by their most recent notification
+    fun getSince(context: Context, time: Long): Cursor {
+        return db(context).rawQuery(
+            "SELECT * FROM $TABLE WHERE time >= ? ORDER BY time DESC",
+            arrayOf(time.toString())
+        )
+    }
+
+    fun getBetween(context: Context, startTime: Long, endTime: Long): Cursor {
+        return db(context).rawQuery(
+            "SELECT * FROM $TABLE WHERE time BETWEEN ? AND ? ORDER BY time DESC",
+            arrayOf(startTime.toString(), endTime.toString())
+        )
+    }
+
     fun getDistinctApps(context: Context): Cursor {
         return db(context).rawQuery(
             "SELECT pkg, app_name, app_icon, MAX(time) AS latest_time FROM $TABLE WHERE app_name IS NOT NULL GROUP BY pkg ORDER BY latest_time DESC",
@@ -66,7 +79,7 @@ object NotificationDB {
                     title TEXT,
                     text TEXT,
                     time LONG,
-                    pending_intent BLOB, -- This column is no longer used but kept for schema stability
+                    pending_intent BLOB,
                     image BLOB,
                     app_name TEXT,
                     app_icon BLOB
